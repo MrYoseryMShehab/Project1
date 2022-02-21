@@ -1,0 +1,74 @@
+/* Query 1- query used for first insight */
+SELECT m.Name Name_MediaType,
+       ROUND(sum(l.UnitPrice * l.Quantity), 2) total
+FROM MediaType m
+JOIN Track t ON m.MediaTypeId = t.MediaTypeId
+JOIN InvoiceLine l ON l.TrackId = t.TrackId
+GROUP BY m.Name
+ORDER BY total DESC;
+
+/* Query 2- query used for first insight */
+SELECT g.Name Name_Genre,
+       ROUND(sum(l.UnitPrice * l.Quantity), 2) total
+FROM Genre g
+JOIN Track t ON g.GenreId = t.GenreId
+JOIN InvoiceLine l ON l.TrackId = t.TrackId
+GROUP BY g.Name
+ORDER BY total DESC
+LIMIT 7;
+
+/* Query3- query used for first insight */
+SELECT ar.Name Name_Artist,
+       ROUND(sum(il.UnitPrice * il.Quantity), 2) total
+FROM Artist ar
+JOIN Album al ON ar.ArtistId = al.ArtistId
+JOIN Track t ON t.AlbumId =al.AlbumId
+JOIN InvoiceLine il ON il.TrackId = t.TrackId
+GROUP BY ar.Name
+ORDER BY total DESC
+LIMIT 7;
+
+/* Query4- query used for first insight */
+WITH max_country AS
+  (SELECT count(*) Purchases,
+          c.Country,
+          g.name,
+          g.GenreId
+   FROM Customer c
+   JOIN Invoice i ON c.CustomerId = i.CustomerId
+   JOIN InvoiceLine l ON i.InvoiceId = l.InvoiceId
+   JOIN Track t ON t.TrackId = l.TrackId
+   JOIN Genre g ON g.GenreId = t.GenreId
+   GROUP BY 2,
+            3
+   ORDER BY 2,
+            1 DESC),
+     sort_country AS
+  (SELECT Purchases,
+          Country,
+          name,
+          GenreId
+   FROM max_country
+   ORDER BY 2,
+            1 DESC),
+     name_country AS
+  (SELECT DISTINCT Country
+   FROM Customer),
+     Genre_country AS
+  (SELECT DISTINCT Country,
+                   Name_first
+   FROM
+     (SELECT Purchases,
+             Country,
+             name,
+             GenreId,
+             FIRST_VALUE(name) OVER (PARTITION BY Country
+                                     ORDER BY Purchases DESC,name NULLS LAST) AS Name_first
+      FROM sort_country
+      ORDER BY Country,
+               Purchases DESC))
+SELECT Name_first,
+       count(Country) count_Genre_first_country
+FROM Genre_country
+GROUP BY Name_first
+ORDER BY count(Country) DESC;
